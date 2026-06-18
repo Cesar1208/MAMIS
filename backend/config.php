@@ -1,21 +1,22 @@
 <?php
 // backend/config.php
 
-// Permitir peticiones desde tu frontend local
+// Evita por completo el bloqueo de CORS al conectar desde el Frontend
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS, DELETE, PUT");
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
     exit(0);
 }
 
-// Configuración para el entorno LOCAL de XAMPP
-$host = '127.0.0.1';
+// Credenciales reales del Cluster de MySQL en Clever Cloud
+$host = 'bxai5nugdj0qtsguxlnm-mysql.services.clever-cloud.com'; 
 $port = '3306';
-$db   = 'bxai5nugdj0qtsguxlnm'; // El nombre de la base de datos que creaste en tu localhost
-$user = 'root';                 // Usuario por defecto de XAMPP
-$pass = '';                     // Contraseña vacía por defecto en XAMPP
+$db   = 'bxai5nugdj0qtsguxlnm'; 
+$user = 'root';                 // Cambia 'root' por tu usuario real de Clever Cloud si es diferente
+$pass = '';                     // Cambia esto por la contraseña de tu base de datos de Clever Cloud
 
 $charset = 'utf8mb4';
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset;port=$port";
@@ -29,9 +30,7 @@ try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
     header('Content-Type: application/json');
-    echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error de conexión local: ' . $e->getMessage()
-    ]);
+    echo json_encode(['status' => 'error', 'message' => 'Error de conexión al cluster: ' . $e->getMessage()]);
     exit;
 }
+?>
