@@ -1,15 +1,23 @@
 <?php
 // backend/config.php
 
-// Inyección automática o manual del cluster de bases de datos de Clever Cloud
-$host = getenv('MYSQL_ADDON_HOST') ?: 'bxai5nugdj0qtsguxlnm-mysql.services.clever-cloud.com';
-$db   = getenv('MYSQL_ADDON_DB')   ?: 'bxai5nugdj0qtsguxlnm';
-$user = getenv('MYSQL_ADDON_USER') ?: 'ut0dtjyxsh15rnav';
-$pass = getenv('MYSQL_ADDON_PASSWORD') ?: 'ttTTxlFk0wDtAfs7ByC5';
-$port = getenv('MYSQL_ADDON_PORT') ?: '3306';
+// Permitir peticiones desde tu frontend local
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS, DELETE, PUT");
+
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    exit(0);
+}
+
+// Configuración para el entorno LOCAL de XAMPP
+$host = '127.0.0.1';
+$port = '3306';
+$db   = 'bxai5nugdj0qtsguxlnm'; // El nombre de la base de datos que creaste en tu localhost
+$user = 'root';                 // Usuario por defecto de XAMPP
+$pass = '';                     // Contraseña vacía por defecto en XAMPP
 
 $charset = 'utf8mb4';
-
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset;port=$port";
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -18,8 +26,12 @@ $options = [
 ];
 
 try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
+    $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-     throw new \PDOException($e->getMessage(), (int)$e->getCode());
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error de conexión local: ' . $e->getMessage()
+    ]);
+    exit;
 }
-?>
