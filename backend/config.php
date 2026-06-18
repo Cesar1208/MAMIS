@@ -1,7 +1,7 @@
 <?php
 // backend/config.php
 
-// Intentar leer variables automáticas de Clever Cloud, si no, usar tus credenciales exactas
+// Inyección automática o manual del cluster de bases de datos de Clever Cloud
 $host = getenv('MYSQL_ADDON_HOST') ?: 'bxai5nugdj0qtsguxlnm-mysql.services.clever-cloud.com';
 $db   = getenv('MYSQL_ADDON_DB')   ?: 'bxai5nugdj0qtsguxlnm';
 $user = getenv('MYSQL_ADDON_USER') ?: 'ut0dtjyxsh15rnav';
