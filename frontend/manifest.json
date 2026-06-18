@@ -1,0 +1,16 @@
+{
+    "name": "Sistema Aeroportuario Cloud PWA",
+    "short_name": "VuelosWeb",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#080c14",
+    "theme-color": "#080c14",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/3125/3125713.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
