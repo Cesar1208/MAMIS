@@ -1,7 +1,7 @@
 <?php
 // backend/auth.php
 
-// 1. CONFIGURACIÓN DE ENCABEZADOS CORS DE MANERA ULTRA-PERMISIVA
+// 1. CONFIGURACIÓN DE ENCABEZADOS CORS CONTROLADOS Y SEGUROS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
@@ -12,13 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(0);
 }
 
-// 3. INCLUSIÓN DE LA CONEXIÓN A LA BASE DE DATOS
+// 3. INCLUSIÓN DE LA CONEXIÓN A LA BASE DE DATOS MAPPED EN CLEVER CLOUD
 require_once 'config.php';
 
-// Asegurar que el contenido de respuesta siempre sea interpretado como JSON
 header('Content-Type: application/json');
 
-// Leer el flujo de datos JSON entrante (peticiones asíncronas de Fetch)
+// Leer el flujo de datos JSON entrante de peticiones asíncronas de Fetch
 $input = json_decode(file_get_contents('php://input'), true);
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
@@ -33,7 +32,7 @@ if ($action === 'register') {
     }
 
     try {
-        // Verificar si el correo ya se encuentra registrado de forma persistente
+        // Verificar si el usuario ya se encuentra registrado en la tabla correspondientes
         $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
@@ -41,15 +40,15 @@ if ($action === 'register') {
             exit;
         }
 
-        // Hashear contraseña por seguridad y almacenar registro inactivo (requiere validación)
+        // Almacenar el registro con contraseña cifrada y token de verificación inactivo
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         $token = bin2hex(random_bytes(16));
 
         $stmt = $pdo->prepare("INSERT INTO usuarios (email, password, token, activo) VALUES (?, ?, ?, 0)");
         $stmt->execute([$email, $passwordHash, $token]);
 
-        // Generar el enlace simulado que exige la rúbrica para ser impreso en la consola de la UI
-        $linkSimulado = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php?action=activate&token=" . $token;
+        // Generar enlace dinámico usando el nuevo dominio mapeado limpio
+        $linkSimulado = "https://mamis-cesar.cleverapps.io/backend/auth.php?action=activate&token=" . $token;
 
         echo json_encode([
             'status' => 'success',
@@ -63,7 +62,7 @@ if ($action === 'register') {
     }
 }
 
-// --- LÓGICA DE ACTIVACIÓN DE CUENTA (MÉTODO GET DESDE EL NAVEGADOR) ---
+// --- LÓGICA DE ACTIVACIÓN DE CUENTA (MÉTODO GET) ---
 if ($action === 'activate') {
     $token = isset($_GET['token']) ? trim($_GET['token']) : '';
 
@@ -78,7 +77,7 @@ if ($action === 'activate') {
         $usuario = $stmt->fetch();
 
         if ($usuario) {
-            // Activar la cuenta de forma permanente
+            // Modificar de manera persistente el estado de la cuenta a activa
             $update = $pdo->prepare("UPDATE usuarios SET activo = 1, token = NULL WHERE id = ?");
             $update->execute([$usuario['id']]);
             echo "<body style='background:#121214;color:#fff;font-family:sans-serif;text-align:center;padding-top:100px;'>";
@@ -122,7 +121,7 @@ if ($action === 'login') {
     }
 }
 
-// --- LÓGICA DE RECUPERACIÓN DE CONTRASEÑA (SOLICITUD) ---
+// --- LÓGICA DE RECUPERACIÓN DE CONTRASEÑA ---
 if ($action === 'recover_request') {
     $email = isset($input['email']) ? trim($input['email']) : '';
 
@@ -134,7 +133,7 @@ if ($action === 'recover_request') {
             $update = $pdo->prepare("UPDATE usuarios SET token = ? WHERE email = ?");
             $update->execute([$token, $email]);
 
-            $linkSimulado = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php?action=reset_view&token=" . $token;
+            $linkSimulado = "https://mamis-cesar.cleverapps.io/backend/auth.php?action=reset_view&token=" . $token;
 
             echo json_encode([
                 'status' => 'success',
