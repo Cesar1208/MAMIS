@@ -2,8 +2,8 @@
 
 let modoActual = 'register'; 
 
-// URL COMPLETAMENTE CORREGIDA: Apunta directo a la raíz de tu Clever Cloud para eliminar el error de CORS
-const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io";
+// URL CORREGIDA: Volvemos a incluir /backend porque tus archivos están estructurados en esa carpeta dentro del servidor
+const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
 const AUTH_URL = `${API_BASE_URL}/auth.php`;
 const RESERVAS_URL = `${API_BASE_URL}/reservas.php`;
 
@@ -156,7 +156,7 @@ async function guardarNuevaCita() {
             alert(datos.message);
             document.getElementById('nombre-cita').value = "";
             document.getElementById('fecha-cita').value = "";
-            cargarCitas(email); // Actualización dinámica de la información en pantalla sin recargar la página entera
+            cargarCitas(email); // Actualización dinámica sin recargar la página entera
         } else {
             alert(datos.message);
         }
