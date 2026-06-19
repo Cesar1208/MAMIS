@@ -1,107 +1,117 @@
 <?php
 // backend/auth.php
-header("Access-Control-Allow-Origin: https://mamis.onrender.com");
-header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Access-Control-Allow-Credentials: true");
+require_once 'config.php';
+
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit(0);
-}
+$action = $_GET['action'] ?? '';
 
-require_once 'config.php';
-require 'phpmailer/Exception.php';
-require 'phpmailer/PHPMailer.php';
-require 'phpmailer/SMTP.php';
+// URL base de tu backend para armar los enlaces de verificación automáticos
+$url_backend = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
-
-if ($action === 'register') {
-    $email = $_POST['email'] ?? '';
-    $pass = $_POST['password'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
     
-    if (!$email || !$pass) {
-        echo json_encode(['status' => 'error', 'message' => 'Parámetros del formulario incompletos.']);
+    // --- 1. ACCIÓN: REGISTRO DE USUARIO ---
+    if ($action === 'register') {
+        $email = filter_var($input['email'] ?? '', FILTER_VALIDATE_EMAIL);
+        $password = $input['password'] ?? '';
+        
+        if (!$email || strlen($password) < 4) {
+            echo json_encode(['status' => 'error', 'message' => 'Datos de registro inválidos.']);
+            exit;
+        }
+        
+        // Verificar si el usuario ya existe en la base de datos
+        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        if ($stmt->fetch()) {
+            echo json_encode(['status' => 'error', 'message' => 'El correo electrónico ya está registrado.']);
+            exit;
+        }
+        
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+        $token = bin2hex(random_bytes(16)); // Token único de activación
+        
+        // Insertar usuario con estado 'inactive'
+        $stmt = $pdo->prepare("INSERT INTO usuarios (email, password, token, status) VALUES (?, ?, ?, 'inactive')");
+        if ($stmt->execute([$email, $passwordHash, $token])) {
+            
+            // Simulación / Configuración del cuerpo del correo interactivo y estético
+            $enlaceVerificacion = $url_backend . "/auth.php?action=verify&token=" . $token;
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Usuario creado con éxito en segundo plano.',
+                'email_simulated' => true,
+                'link' => $enlaceVerificacion
+            ]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No se pudo guardar el registro.']);
+        }
         exit;
     }
     
-    $hash = password_hash($pass, PASSWORD_BCRYPT);
-    $token = bin2hex(random_bytes(32)); 
-    
-    try {
-        $stmt = $pdo->prepare("INSERT INTO usuarios (email, password, token, status) VALUES (?, ?, ?, 'inactive')");
-        $stmt->execute([$email, $hash, $token]);
+    // --- 2. ACCIÓN: INICIO DE SESIÓN ---
+    if ($action === 'login') {
+        $email = filter_var($input['email'] ?? '', FILTER_VALIDATE_EMAIL);
+        $password = $input['password'] ?? '';
         
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com'; 
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'TU_CORREO_DE_GMAIL@gmail.com'; // Pon tu correo real aquí
-        $mail->Password   = 'TU_CLAVE_DE_APLICACION';      // Token de 16 letras de Google
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
         
-        $mail->setFrom('TU_CORREO_DE_GMAIL@gmail.com', 'AeroCore Cloud');
-        $mail->addAddress($email);
+        if (!$user || !password_verify($password, $user['password'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Credenciales incorrectas.']);
+            exit;
+        }
         
-        // Enlace de producción apuntando a tu backend de Clever Cloud
-        // ⚠️ REEMPLAZA CON LA URL QUE TE OTORGUE CLEVER CLOUD EN TU PROYECTO
-        $enlaceVerificacion = "https://tu-app-php.cleverapps.io/backend/auth.php?action=verify&token=" . $token;
+        // Validar si la cuenta está verificada
+        if ($user['status'] !== 'active') {
+            echo json_encode(['status' => 'error', 'message' => 'Cuenta pendiente. Debes validar tu cuenta por correo primero.']);
+            exit;
+        }
         
-        $mail->isHTML(true);
-        $mail->Subject = 'Verificacion de Cuenta - Sistema de Vuelos PWA';
-        $mail->Body    = "<h2>¡Registro exitoso en AeroCore!</h2>
-                          <p>Para activar tu cuenta y poder ingresar al sistema core, haz clic en el siguiente enlace:</p>
-                          <p><a href='{$enlaceVerificacion}'>{$enlaceVerificacion}</a></p>";
-        
-        $mail->send();
-        echo json_encode(['status' => 'success', 'message' => 'Usuario guardado. Se ha enviado un correo real de verificación.']);
-        
-    } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => 'Error al despachar correo: ' . $mail->ErrorInfo]);
-    } catch (PDOException $e) {
-        echo json_encode(['status' => 'error', 'message' => 'El correo electrónico ya se encuentra registrado.']);
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Sesión iniciada correctamente.',
+            'user' => ['id' => $user['id'], 'email' => $user['email']]
+        ]);
+        exit;
     }
 }
 
-elseif ($action === 'verify') {
-    $tokenRecibido = $_GET['token'] ?? '';
-    if (!$tokenRecibido) { die("Token inválido."); }
+// --- 3. ACCIÓN: VERIFICACIÓN DE TOKEN (GET) ---
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'verify') {
+    $token = $_GET['token'] ?? '';
     
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE token = ?");
-    $stmt->execute([$tokenRecibido]);
+    if (empty($token)) {
+        die("Token no proporcionado o inválido.");
+    }
+    
+    // Buscar usuario con dicho token
+    $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE token = ?");
+    $stmt->execute([$token]);
     $user = $stmt->fetch();
     
     if ($user) {
+        // Cambiar estado a activo y limpiar el token
         $update = $pdo->prepare("UPDATE usuarios SET status = 'active', token = NULL WHERE id = ?");
         $update->execute([$user['id']]);
-        echo "<h1>¡Cuenta activada!</h1><p>Tu usuario ha sido verificado en MySQL de Clever Cloud. Regresa a la app e inicia sesión.</p>";
+        
+        // Respuesta HTML estética de confirmación exitosa
+        echo "
+        <div style='font-family: sans-serif; text-align: center; margin-top: 50px; padding: 20px;'>
+            <h1 style='color: #10b981;'>✓ ¡Cuenta Activada con Éxito!</h1>
+            <p style='font-size: 18px; color: #374151;'>Tu cuenta de CupidCore ha sido verificada correctamente.</p>
+            <p>Ya puedes regresar a la aplicación e iniciar sesión sin problemas.</p>
+            <br>
+            <a href='https://mamis.onrender.com' style='background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Ir a la PWA en Vivo</a>
+        </div>
+        ";
     } else {
-        echo "<h1>Error de verificación</h1><p>El enlace ha expirado o ya fue utilizado.</p>";
+        echo "<h2>El enlace de verificación ha expirado o es inválido.</h2>";
     }
-}
-
-elseif ($action === 'login') {
-    $email = $_POST['email'] ?? '';
-    $pass = $_POST['password'] ?? '';
-    
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch();
-    
-    if ($user && password_verify($pass, $user['password'])) {
-        if ($user['status'] !== 'active') {
-            echo json_encode(['status' => 'error', 'message' => 'Cuenta inactiva. Verifica tu correo electrónico primero.']);
-            exit;
-        }
-        echo json_encode(['status' => 'success', 'message' => 'Sesión autorizada en el clúster cloud.']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Credenciales incorrectas de acceso.']);
-    }
+    exit;
 }
 ?>
