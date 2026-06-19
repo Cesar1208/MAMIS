@@ -1,12 +1,16 @@
+/* frontend/styles.css */
+
+/* Paleta de colores atractiva con combinaciones rojas oscuras y brillantes */
 :root {
-    --bg-dark: #0d080a;
-    --bg-card: #1c0f13;
-    --red-primary: #e11d48;
-    --red-hover: #be123c;
-    --text-main: #fff1f2;
-    --text-muted: #fda4af;
+    --bg-dark: #0d080a;        /* Fondo base de la app */
+    --bg-card: #1c0f13;        /* Fondo de los contenedores principales */
+    --red-primary: #e11d48;    /* Rojo pasión brillante para botones y logos */
+    --red-hover: #be123c;      /* Rojo oscuro interactivo */
+    --text-main: #fff1f2;      /* Blanco rosáceo para textos limpios */
+    --text-muted: #fda4af;    /* Tono pastel apagado para subtítulos */
 }
 
+/* Reseteo general de márgenes nativos */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -24,9 +28,10 @@ body {
     padding: 20px;
 }
 
+/* Caja elástica contenedora */
 .app-container {
     width: 100%;
-    max-width: 450px;
+    max-width: 450px; /* Tamaño móvil por defecto */
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -36,17 +41,20 @@ body {
     text-align: center;
 }
 
+/* Animación de latido para el corazón superior solicitado */
 .heart-logo {
     font-size: 4rem;
     animation: pulse 1.5s infinite;
 }
 
+/* Fuente caligráfica bonita y llamativa */
 .app-title {
     font-family: 'Pacifico', cursive;
     color: var(--red-primary);
     font-size: 2.6rem;
 }
 
+/* Diseño de tarjetas con sutil borde rojizo traslúcido */
 .card {
     background-color: var(--bg-card);
     border: 2px solid rgba(225, 29, 72, 0.2);
@@ -94,7 +102,7 @@ input {
 
 input:focus {
     outline: none;
-    border-color: var(--red-primary);
+    border-color: var(--red-primary); /* Brillo rojo al escribir */
 }
 
 button {
@@ -132,6 +140,7 @@ button:hover {
     color: var(--red-primary);
 }
 
+/* Contenedor de la pantalla final exitosa */
 .success-screen {
     text-align: center;
 }
@@ -152,7 +161,7 @@ button:hover {
     color: var(--text-muted);
 }
 
-/* Consola de Procesos Asíncronos */
+/* Estilos de la Consola Técnica de Hilos */
 .console-card {
     background-color: #000;
     padding: 15px;
@@ -179,23 +188,25 @@ button:hover {
 .log-success { color: #4ade80; }
 .log-error { color: #facc15; }
 
+/* Regla útil para ocultar bloques mediante código */
 .hidden { display: none !important; }
 
+/* Animación matemática de transformación para simular latidos reales */
 @keyframes pulse {
     0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    50% { transform: scale(1.06); }
     100% { transform: scale(1); }
 }
 
-/* 💻 ADAPTACIÓN AUTOMÁTICA PARA LAPTOPS / PANTALLAS GRANDES */
+/* 💻 RESPONSIVE DESIGN: Si la pantalla es una LAPTOP (mínimo 768px de ancho), ensancha las cajas y fuentes de manera proporcionada */
 @media (min-width: 768px) {
     .app-container {
-        max-width: 650px;
+        max-width: 650px; /* Crece el ancho del contenedor */
     }
     .welcome-message h2 {
-        font-size: 1.6rem;
+        font-size: 1.6rem; /* Aumenta el texto de bienvenida */
     }
     .heart-text {
-        font-size: 3.5rem;
+        font-size: 3.5rem; /* Crece la tipografía final */
     }
 }
