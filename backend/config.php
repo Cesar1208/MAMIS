@@ -1,7 +1,6 @@
 <?php
 // backend/config.php
 
-// CREDENCIALES REALES EXTRAÍDAS DE TU PANEL EN LA CAPTURA image_2bf6e7.png
 $host = 'bxai5nugdj0qtsguxlnm-mysql.services.clever-cloud.com'; 
 $db   = 'bxai5nugdj0qtsguxlnm'; 
 $user = 'ut0dtjyxsh15rnav'; 
