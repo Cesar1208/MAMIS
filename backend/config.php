@@ -1,20 +1,19 @@
 <?php
 // backend/config.php
 
-// REGLA DE ORO: Autoriza de forma explícita a tu frontend de Render a pedir información.
-// Esto destruye permanentemente el error amarillo de bloqueo de red (CORS).
+// Permitir el acceso explícito desde tu frontend en Render para eliminar el error amarillo de CORS
 header("Access-Control-Allow-Origin: https://mamis.onrender.com");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
 
-// Si el navegador hace una consulta de control previa (OPTIONS), le responde un OK directo.
+// Responder de inmediato con un estado OK a las peticiones de pre-vuelo (OPTIONS) del navegador
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit(0);
 }
 
-// Parámetros de conexión de tu base de datos Clever Cloud (Vistos en tus capturas de pantalla)
+// Credenciales de tu base de datos en Clever Cloud (Verificadas en tus capturas)
 $host = 'bxai5nugdj0qtsguxlnm-mysql.services.clever-cloud.com';
 $port = '3306';
 $db   = 'bxai5nugdj0qtsguxlnm';
@@ -22,15 +21,15 @@ $user = 'uuj9b8v8wbw9b2v';
 $pass = 'XfF9N3pZ8vK7wQ2m'; 
 
 try {
-    // Intenta conectar al motor MySQL utilizando la extensión PDO con codificación segura UTF-8
+    // Establece la conexión formal utilizando PDO con codificación UTF-8 para evitar problemas de acentos
     $pdo = new PDO("mysql:host=$host;dbname=$db;port=$port;charset=utf8mb4", $user, $pass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Activa el reporte de errores en forma de excepciones
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC // Configura el retorno de datos como arreglos asociativos
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Reportar errores como excepciones legibles
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC // Retornar las consultas como arreglos asociativos
     ]);
 } catch (PDOException $e) {
-    // Si la conexión falla, frena el sistema y le avisa al Frontend en formato JSON
+    // Si la base de datos falla, se corta el flujo y se le avisa al frontend en formato JSON
     header('Content-Type: application/json');
-    echo json_encode(['status' => 'error', 'message' => 'Error de conexión: ' . $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => 'Fallo crítico de conexión: ' . $e->getMessage()]);
     exit;
 }
 ?>
