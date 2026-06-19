@@ -1,175 +1,154 @@
 <?php
 // backend/auth.php
 
-// Reutiliza la configuración de base de datos y cabeceras CORS
+// 1. CONFIGURACIÓN DE ENCABEZADOS CORS DE MANERA ULTRA-PERMISIVA
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+
+// 2. RESPUESTA INMEDIATA A LA PETICIÓN PREVIA (OPTIONS) DEL NAVEGADOR
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit(0);
+}
+
+// 3. INCLUSIÓN DE LA CONEXIÓN A LA BASE DE DATOS
 require_once 'config.php';
+
+// Asegurar que el contenido de respuesta siempre sea interpretado como JSON
 header('Content-Type: application/json');
 
-$action = $_GET['action'] ?? '';
-// URL base de tu backend en Clever Cloud para armar los enlaces dinámicos de simulación
-$url_base = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io";
+// Leer el flujo de datos JSON entrante (peticiones asíncronas de Fetch)
+$input = json_decode(file_get_contents('php://input'), true);
+$action = isset($_GET['action']) ? $_GET['action'] : '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Captura y decodifica el cuerpo JSON asíncrono enviado por el frontend
-    $json = file_get_contents('php://input');
-    $datos = json_decode($json, true);
-    
-    $email = $datos['email'] ?? '';
-    $password = $datos['password'] ?? '';
-    
-    // === REGISTRO DE USUARIOS ===
-    if ($action === 'register') {
-        if (empty($email) || empty($password)) {
-            echo json_encode(['status' => 'error', 'message' => 'Campos obligatorios incompletos.']);
-            exit;
-        }
+// --- LÓGICA DE REGISTRO DE USUARIO ---
+if ($action === 'register') {
+    $email = isset($input['email']) ? trim($input['email']) : '';
+    $password = isset($input['password']) ? trim($input['password']) : '';
 
-        // Validación de duplicados para cumplir con las restricciones de consistencia
+    if (empty($email) || empty($password)) {
+        echo json_encode(['status' => 'error', 'message' => 'Campos incompletos.']);
+        exit;
+    }
+
+    try {
+        // Verificar si el correo ya se encuentra registrado de forma persistente
         $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
-            echo json_encode(['status' => 'error', 'message' => 'Este correo electrónico ya está registrado.']);
-            exit;
-        }
-        
-        // Encriptación segura de la contraseña usando el estándar BCRYPT
-        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-        // Generación de un token único aleatorio para la activación por enlace
-        $token = bin2hex(random_bytes(16));
-        
-        // Almacenamiento persistente en la tabla 'usuarios' con estado inicial 'inactive'
-        $stmt = $pdo->prepare("INSERT INTO usuarios (email, password, token, status) VALUES (?, ?, ?, 'inactive')");
-        if ($stmt->execute([$email, $passwordHash, $token])) {
-            $enlaceVerificar = "$url_base/backend/auth.php?action=verify&token=$token";
-            echo json_encode([
-                'status' => 'success',
-                'message' => '¡Usuario registrado! Se requiere validación de cuenta.',
-                'link_simulado' => $enlaceVerificar // Se envía al frontend para simular el correo en la consola
-            ]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Error al guardar el registro en la base de datos.']);
-        }
-        exit;
-    }
-    
-    // === INICIO DE SESIÓN ===
-    if ($action === 'login') {
-        if (empty($email) || empty($password)) {
-            echo json_encode(['status' => 'error', 'message' => 'Por favor, llena todos los campos.']);
+            echo json_encode(['status' => 'error', 'message' => 'El correo electrónico ya está registrado.']);
             exit;
         }
 
+        // Hashear contraseña por seguridad y almacenar registro inactivo (requiere validación)
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+        $token = bin2hex(random_bytes(16));
+
+        $stmt = $pdo->prepare("INSERT INTO usuarios (email, password, token, activo) VALUES (?, ?, ?, 0)");
+        $stmt->execute([$email, $passwordHash, $token]);
+
+        // Generar el enlace simulado que exige la rúbrica para ser impreso en la consola de la UI
+        $linkSimulado = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php?action=activate&token=" . $token;
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => '¡Registro exitoso! Cuenta creada de manera persistente en la nube.',
+            'link_simulado' => $linkSimulado
+        ]);
+        exit;
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Error en base de datos: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
+// --- LÓGICA DE ACTIVACIÓN DE CUENTA (MÉTODO GET DESDE EL NAVEGADOR) ---
+if ($action === 'activate') {
+    $token = isset($_GET['token']) ? trim($_GET['token']) : '';
+
+    if (empty($token)) {
+        echo "<h1>Módulo de Activación</h1><p>Token inválido o ausente.</p>";
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE token = ?");
+        $stmt->execute([$token]);
+        $usuario = $stmt->fetch();
+
+        if ($usuario) {
+            // Activar la cuenta de forma permanente
+            $update = $pdo->prepare("UPDATE usuarios SET activo = 1, token = NULL WHERE id = ?");
+            $update->execute([$usuario['id']]);
+            echo "<body style='background:#121214;color:#fff;font-family:sans-serif;text-align:center;padding-top:100px;'>";
+            echo "<h1>❤️ ¡Cuenta Activada con Éxito!</h1>";
+            echo "<p>Tu cuenta ha sido validada en Clever Cloud de forma persistente. Ya puedes regresar a la aplicación e iniciar sesión.</p>";
+            echo "</body>";
+            exit;
+        } else {
+            echo "<h1>Error de Validación</h1><p>El enlace de activación ya fue utilizado o expiró.</p>";
+            exit;
+        }
+    } catch (PDOException $e) {
+        echo "<h1>Error Crítico</h1><p>" . $e->getMessage() . "</p>";
+        exit;
+    }
+}
+
+// --- LÓGICA DE INICIO DE SESIÓN ---
+if ($action === 'login') {
+    $email = isset($input['email']) ? trim($input['email']) : '';
+    $password = isset($input['password']) ? trim($input['password']) : '';
+
+    try {
         $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
         $stmt->execute([$email]);
-        $usuario = $stmt->fetch();
-        
-        // Verifica la contraseña contra el hash e inspecciona si la cuenta está activada
-        if ($usuario && password_verify($password, $usuario['password'])) {
-            if ($usuario['status'] !== 'active') {
-                echo json_encode(['status' => 'error', 'message' => 'Tu cuenta no está activa. Usa el enlace de verificación primero.']);
-                exit;
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password'])) {
+            if ((int)$user['activo'] === 1) {
+                echo json_encode(['status' => 'success', 'message' => 'Sesión iniciada con éxito. Redireccionando al panel CRUD...']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Esta cuenta no ha sido activada. Revisa el link de activación en la consola inferior.']);
             }
-            echo json_encode(['status' => 'success', 'message' => '¡Sesión iniciada correctamente!']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'El correo o la contraseña son incorrectos.']);
+            echo json_encode(['status' => 'error', 'message' => 'Credenciales incorrectas de acceso.']);
         }
         exit;
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
+        exit;
     }
+}
 
-    // === SOLICITUD DE RECUPERACIÓN DE CONTRASEÑA ===
-    if ($action === 'recover_request') {
-        if (empty($email)) {
-            echo json_encode(['status' => 'error', 'message' => 'Escribe tu correo para recuperar.']);
-            exit;
-        }
+// --- LÓGICA DE RECUPERACIÓN DE CONTRASEÑA (SOLICITUD) ---
+if ($action === 'recover_request') {
+    $email = isset($input['email']) ? trim($input['email']) : '';
 
+    try {
         $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
             $token = bin2hex(random_bytes(16));
-            $stmt = $pdo->prepare("UPDATE usuarios SET token = ? WHERE email = ?");
-            $stmt->execute([$token, $email]);
-            
-            $enlaceRecuperar = "$url_base/backend/auth.php?action=reset_view&token=$token";
+            $update = $pdo->prepare("UPDATE usuarios SET token = ? WHERE email = ?");
+            $update->execute([$token, $email]);
+
+            $linkSimulado = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php?action=reset_view&token=" . $token;
+
             echo json_encode([
                 'status' => 'success',
-                'message' => 'Enlace de recuperación generado con éxito.',
-                'link_simulado' => $enlaceRecuperar
+                'message' => 'Enlace de recuperación generado dinámicamente.',
+                'link_simulado' => $linkSimulado
             ]);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Ese correo electrónico no existe en el sistema.']);
+            echo json_encode(['status' => 'error', 'message' => 'El correo electrónico no se encuentra registrado.']);
         }
+        exit;
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
         exit;
     }
 }
 
-// === ENLACES DIRECTOS GET (Interacción desde el navegador) ===
-
-// Activación de la cuenta al hacer clic en el enlace simulado de la consola
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'verify') {
-    $token = $_GET['token'] ?? '';
-    
-    $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE token = ?");
-    $stmt->execute([$token]);
-    $usuario = $stmt->fetch();
-    
-    if ($usuario) {
-        // Cambia el estado a 'active' y quita el token de un solo uso
-        $update = $pdo->prepare("UPDATE usuarios SET status = 'active', token = NULL WHERE id = ?");
-        $update->execute([$usuario['id']]);
-        
-        echo "
-        <div style='font-family: sans-serif; text-align: center; margin-top: 80px;'>
-            <h1 style='color: #e11d48;'>❤️ ¡Cuenta Activada con Éxito!</h1>
-            <p style='font-size: 1.1rem;'>Tu usuario ha sido validado correctamente. Ya puedes iniciar sesión.</p>
-            <br><br>
-            <a href='https://mamis.onrender.com' style='background: #e11d48; color: white; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 8px;'>Ir a la Aplicación e Iniciar Sesión</a>
-        </div>";
-    } else {
-        echo "<h2>El enlace de verificación expiró o ya fue utilizado.</h2>";
-    }
-    exit;
-}
-
-// Vista html del formulario para restablecer la contraseña
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'reset_view') {
-    $token = $_GET['token'] ?? '';
-    echo "
-    <div style='font-family: sans-serif; text-align: center; margin-top: 60px; max-width: 400px; margin-left: auto; margin-right: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
-        <h2 style='color: #e11d48;'>Restablecer Contraseña</h2>
-        <form action='auth.php?action=update_password' method='POST'>
-            <input type='hidden' name='token' value='$token'>
-            <input type='password' name='nueva_password' placeholder='Escribe tu nueva contraseña' required style='width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box;'>
-            <button type='submit' style='background: #e11d48; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold;'>Actualizar Contraseña</button>
-        </form>
-    </div>";
-    exit;
-}
-
-// Procesamiento y guardado de la nueva contraseña enviada por formulario POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update_password') {
-    $token = $_POST['token'] ?? '';
-    $nueva_password = $_POST['nueva_password'] ?? '';
-    
-    if (!empty($token) && !empty($nueva_password)) {
-        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE token = ?");
-        $stmt->execute([$token]);
-        $usuario = $stmt->fetch();
-        
-        if ($usuario) {
-            $nuevoHash = password_hash($nueva_password, PASSWORD_BCRYPT);
-            $update = $pdo->prepare("UPDATE usuarios SET password = ?, token = NULL WHERE id = ?");
-            $update->execute([$nuevoHash, $usuario['id']]);
-            echo "
-            <div style='font-family: sans-serif; text-align: center; margin-top: 60px;'>
-                <h2 style='color: green;'>✔️ ¡Contraseña actualizada exitosamente!</h2>
-                <br>
-                <a href='https://mamis.onrender.com' style='background: #e11d48; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Volver a CupidCore</a>
-            </div>";
-        } else {
-            echo "<h2>Token no válido. Inténtalo de nuevo.</h2>";
-        }
-    }
-    exit;
-}
-?>
+echo json_encode(['status' => 'error', 'message' => 'Acción no permitida o ruta no válida.']);
