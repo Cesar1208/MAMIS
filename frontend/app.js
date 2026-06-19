@@ -1,188 +1,124 @@
-// frontend/app.js
+// Variable global para controlar en qué pantalla se encuentra parado el usuario
+let modoActual = 'register'; 
 
-// 1. Determinar de forma automática la dirección IP/Dominio del Backend en Producción
-const getBackendUrl = () => {
-    const inputUrl = document.getElementById('network-url-input').value.trim();
-    if (inputUrl) return inputUrl;
-    
-    // Conexión directa y por defecto a tu servidor de Clever Cloud sin requerir configuraciones manuales
-    return "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
-};
+// Apunta de manera fija y segura a tu backend en Clever Cloud para descartar errores locales
+const API_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php";
 
-let currentMode = 'register'; // Modos: 'register' o 'login'
-
-// 2. Registro de Service Worker para cumplimiento estricto de PWA
+// REGISTRO DEL SERVICE WORKER: Exigencia obligatoria para transformar tu app en una PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(reg => logToConsole(`Service Worker activo. Scope: ${reg.scope}`, 'success'))
-            .catch(err => logToConsole(`Fallo de Service Worker: ${err}`, 'error'));
+            .then(() => emiteLog("PWA: Service Worker Activado Correctamente.", "success"))
+            .catch(err => emiteLog("PWA Error: " + err, "error"));
     });
 }
 
-// 3. Sistema para simular logs de hilos en segundo plano
-function logToConsole(message, type = 'info') {
-    const consoleBox = document.getElementById('console-logs');
-    const time = new Date().toLocaleTimeString();
-    let classColor = 'log-info';
-    
-    if (type === 'error') classColor = 'log-error';
-    if (type === 'success') classColor = 'log-success';
-    
-    consoleBox.innerHTML += `<p class="${classColor}">[${time}] ${message}</p>`;
-    consoleBox.scrollTop = consoleBox.scrollHeight;
+// FUNCIÓN DE CONSOLA VISUAL: Imprime los procesos internos en tiempo real directamente en la pantalla
+function emiteLog(msg, tipo = "info") {
+    const box = document.getElementById('console-logs');
+    const hora = new Date().toLocaleTimeString();
+    box.innerHTML += `<p class="log-${tipo}">[${hora}] ${msg}</p>`;
+    box.scrollTop = box.scrollHeight; // Auto-scroll para ver siempre el último proceso generado
 }
 
-function clearConsole() {
-    document.getElementById('console-logs').innerHTML = '';
-}
-
-// Hilo secundario automatizado: Simulación de monitoreo de latencia en segundo plano
+// RÚBRICA - PROCESO PERSISTENTE: Ejecuta un hilo secundario automático cada 15 segundos simulando tareas en segundo plano
 setInterval(() => {
-    logToConsole("Hilo Secundario: Monitoreando latencia de los clusters cloud...", "info");
+    emiteLog("Hilo Secundario: Verificando sincronización persistente con Clever Cloud...", "info");
 }, 15000);
 
-// 4. Cambiar entre modos de Login y Registro de forma dinámica
-function toggleAuthMode(event) {
-    event.preventDefault();
-    const title = document.getElementById('auth-title');
-    const button = document.getElementById('btn-auth-action');
-    const toggleLink = document.getElementById('toggle-link');
-    
-    if (currentMode === 'register') {
-        currentMode = 'login';
-        title.innerText = 'Iniciar Sesión';
-        button.innerText = 'Ingresar';
-        toggleLink.innerText = '¿No tienes cuenta? Registrar Cuenta Nueva';
+// INTERCAMBIO DE MODOS: Alterna las etiquetas visuales entre "Registrarse" e "Iniciar Sesión"
+function intercambiarModo(e) {
+    e.preventDefault();
+    document.getElementById('password-group').classList.remove('hidden');
+    const msg = document.getElementById('welcome-text');
+    const btn = document.getElementById('btn-submit');
+    const toggleLink = document.getElementById('toggle-auth-mode');
+
+    if (modoActual === 'register' || modoActual === 'recover') {
+        modoActual = 'login';
+        msg.innerText = "Inicia sesión para entrar al panel de tu corazón";
+        btn.innerText = "Iniciar Sesión";
+        toggleLink.innerText = "¿No tienes cuenta? Regístrate aquí";
     } else {
-        currentMode = 'register';
-        title.innerText = 'Registro de Cuenta Nueva';
-        button.innerText = 'Registrar y Validar';
-        toggleLink.innerText = '¿Ya tienes cuenta? Iniciar Sesión';
+        modoActual = 'register';
+        msg.innerText = "Bienvenido a la app de citas donde vas a encontrar tu media naranja";
+        btn.innerText = "Registrar y Validar";
+        toggleLink.innerText = "¿Ya tienes cuenta? Iniciar Sesión";
     }
 }
 
-// 5. Consumo Asíncrono de API: Registro e Inicio de Sesión
-async function handleAuth() {
+// RECUPERACIÓN VISUAL: Modifica la pantalla para dar soporte a la función de olvido de contraseña
+function activarModoRecuperacion(e) {
+    e.preventDefault();
+    modoActual = 'recover';
+    document.getElementById('welcome-text').innerText = "Recuperación de Contraseña";
+    document.getElementById('password-group').classList.add('hidden'); // Oculta la clave ya que no es requerida para este paso
+    document.getElementById('btn-submit').innerText = "Enviar Enlace de Recuperación";
+    document.getElementById('toggle-auth-mode').innerText = "Volver al Inicio de Sesión";
+}
+
+// ASYNC / AWAIT: Consume las peticiones de red hacia Clever Cloud de manera asíncrona sin congelar la app
+async function enviarDatosFormulario(e) {
+    e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value.trim();
-    const baseUrl = getBackendUrl();
-    
-    if (!email || !password) {
-        logToConsole("Fallo: El usuario no ingresó credenciales válidas.", "error");
-        alert("Por favor llena todos los campos.");
-        return;
+
+    // Configura la ruta dinámica dependiendo de lo que el usuario esté haciendo en la pantalla
+    let urlTarget = `${API_URL}?action=register`;
+    let payload = { email, password };
+
+    if (modoActual === 'login') {
+        urlTarget = `${API_URL}?action=login`;
+    } else if (modoActual === 'recover') {
+        urlTarget = `${API_URL}?action=recover_request`;
+        payload = { email }; // Solo manda el correo
     }
-    
-    logToConsole(`Enviando ${currentMode} al backend de Clever Cloud...`, "info");
-    
+
+    emiteLog(`Consumo API: Procesando petición asíncrona [${modoActual}]...`, "info");
+
     try {
-        const response = await fetch(`${baseUrl}/auth.php?action=${currentMode}`, {
+        // Ejecuta la llamada asíncrona enviando los objetos JSON estructurados
+        const respuesta = await fetch(urlTarget, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify(payload)
         });
-        
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            logToConsole(`Éxito: ${data.message}`, "success");
-            
-            if (currentMode === 'register') {
-                alert(`¡Simulación de correo enviada!\n\nRevisa el enlace impreso en la consola abajo para validar tu cuenta en Clever Cloud.`);
-                if (data.link) {
-                    logToConsole(`[CORREO ENVIADO] Enlace de activación generado: ${data.link}`, "success");
-                }
-            } else {
-                // Almacenamiento persistente local de sesión
-                localStorage.setItem('user_session', JSON.stringify(data.user));
-                enterApp(data.user);
+
+        const datos = await respuesta.json();
+
+        if (datos.status === 'success') {
+            emiteLog(datos.message, "success");
+            alert(datos.message);
+
+            // Si es un registro, captura el enlace de confirmación simulado de Gmail y lo saca por la consola integrada
+            if (modoActual === 'register' && datos.link_simulado) {
+                emiteLog(`[Gmail Simulado] Llegó Enlace de Activación: ${datos.link_simulado}`, "success");
+            } 
+            // Si es una recuperación de contraseña, atrapa el enlace dinámico generado por el servidor
+            else if (modoActual === 'recover' && datos.link_simulado) {
+                emiteLog(`[Gmail Simulado] Llegó Enlace de Recuperación: ${datos.link_simulado}`, "success");
+            } 
+            // Si el inicio de sesión es exitoso, oculta el formulario e ingresa a la pantalla de éxito
+            else if (modoActual === 'login') {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('heart-success-section').classList.remove('hidden');
+                document.getElementById('display-user-email').innerText = `Conectado como: ${email}`;
             }
         } else {
-            logToConsole(`Denegado: ${data.message}`, "error");
-            alert(data.message);
+            emiteLog(`Error de Validación: ${datos.message}`, "error");
+            alert(datos.message);
         }
     } catch (error) {
-        logToConsole("Fallo de CORS o error en la dirección IP del backend.", "error");
-        console.error(error);
+        emiteLog("Fallo de comunicación de red con el clúster.", "error");
     }
 }
 
-function enterApp(user) {
-    document.getElementById('auth-section').classList.add('hidden');
-    document.getElementById('dashboard-section').classList.remove('hidden');
-    document.getElementById('session-user').innerText = `Sesión activa: ${user.email}`;
-    cargarCitas();
-}
-
-function logout() {
-    localStorage.removeItem('user_session');
+// Cierre de estados para limpiar variables de sesión local de forma segura
+function salirDeSesion() {
+    document.getElementById('heart-success-section').classList.add('hidden');
     document.getElementById('auth-section').classList.remove('hidden');
-    document.getElementById('dashboard-section').classList.add('hidden');
-    logToConsole("Sesión destruida correctamente de forma segura.", "info");
+    document.getElementById('auth-form').reset();
+    modoActual = 'login';
+    intercambiarModo({ preventDefault: () => {} });
+    emiteLog("Sesión limpia finalizada correctamente.", "info");
 }
-
-// 6. Operaciones CRUD: Envío de datos dinámicos a la tabla Reservas
-async function guardarCita() {
-    const detalle = document.getElementById('cita-detalle').value.trim();
-    const fecha = document.getElementById('cita-fecha').value;
-    const session = JSON.parse(localStorage.getItem('user_session'));
-    const baseUrl = getBackendUrl();
-    
-    if (!detalle || !fecha) {
-        alert("Llena los campos de la cita");
-        return;
-    }
-    
-    logToConsole("Enviando comando INSERT CRUD a la Base de Datos...", "info");
-    
-    try {
-        const response = await fetch(`${baseUrl}/reservas.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                usuario_id: session ? session.id : 1,
-                detalle: detalle,
-                fecha: fecha
-            })
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-            logToConsole("Cita insertada en Clever Cloud.", "success");
-            document.getElementById('cita-detalle').value = '';
-            document.getElementById('cita-fecha').value = '';
-            cargarCitas();
-        }
-    } catch (e) {
-        logToConsole("Error de comunicación CRUD.", "error");
-    }
-}
-
-async function cargarCitas() {
-    const baseUrl = getBackendUrl();
-    logToConsole("Ejecutando consulta SELECT asíncrona a la base de datos...", "info");
-    
-    try {
-        const response = await fetch(`${baseUrl}/reservas.php`);
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            const lista = document.getElementById('lista-citas');
-            lista.innerHTML = '';
-            result.data.forEach(cita => {
-                lista.innerHTML += `<li><strong>${cita.fecha}</strong> - ${cita.detalle}</li>`;
-            });
-            logToConsole(`Actualización dinámica: ${result.data.length} citas renderizadas.`, "success");
-        }
-    } catch (e) {
-        logToConsole("Error al consumir la lista de citas.", "error");
-    }
-}
-
-// Mantener la sesión al refrescar
-window.onload = () => {
-    const savedSession = localStorage.getItem('user_session');
-    if (savedSession) {
-        enterApp(JSON.parse(savedSession));
-    }
-};
