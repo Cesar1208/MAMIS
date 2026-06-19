@@ -2,12 +2,12 @@
 
 let modoActual = 'register'; 
 
-// URL CORREGIDA: Apunta directo a la raíz de Clever Cloud porque ahí se montan auth.php y reservas.php
+// URL COMPLETAMENTE CORREGIDA: Apunta directo a la raíz de tu Clever Cloud para eliminar el error de CORS
 const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io";
 const AUTH_URL = `${API_BASE_URL}/auth.php`;
 const RESERVAS_URL = `${API_BASE_URL}/reservas.php`;
 
-// Registro del Service Worker para convertir la aplicación en una PWA según rúbrica
+// Registro del Service Worker para convertir la aplicación en una PWA según la rúbrica
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
@@ -29,7 +29,7 @@ setInterval(() => {
     emiteLog("Hilo Secundario: Monitoreando latencia de los clusters cloud...", "info");
 }, 15000);
 
-// Alterna los textos visuales de la tarjeta de autenticación
+// Alterna los textos visuales de la tarjeta de autenticación (Login / Registro)
 function intercambiarModo(e) {
     e.preventDefault();
     document.getElementById('password-group').classList.remove('hidden');
@@ -60,7 +60,7 @@ function activarModoRecuperacion(e) {
     document.getElementById('toggle-auth-mode').innerText = "Volver al Inicio de Sesión";
 }
 
-// ASYNC / AWAIT: Consume las peticiones de autenticación sin congelar la renderización
+// ASYNC / AWAIT: Consume las peticiones de autenticación sin congelar la renderización de la UI
 async function enviarDatosFormulario(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
@@ -91,7 +91,7 @@ async function enviarDatosFormulario(e) {
             emiteLog(datos.message, "success");
             alert(datos.message);
 
-            // Muestra en consola el enlace simulado de Gmail para permitir las pruebas de activación
+            // Muestra en la consola integrada el enlace de activación simulado
             if ((modoActual === 'register' || modoActual === 'recover') && datos.link_simulado) {
                 emiteLog(`[Gmail Simulado] Enlace Recibido: ${datos.link_simulado}`, "success");
             } 
@@ -99,7 +99,7 @@ async function enviarDatosFormulario(e) {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('heart-success-section').classList.remove('hidden');
                 document.getElementById('display-user-email').innerText = `Conectado como: ${email}`;
-                cargarCitas(email); // Lee de manera asíncrona las citas existentes de la base de datos (CRUD)
+                cargarCitas(email); // Lee de manera asíncrona las citas existentes (CRUD)
             }
         } else {
             emiteLog(`Fallo de validación: ${datos.message}`, "error");
@@ -134,7 +134,7 @@ async function cargarCitas(email) {
     }
 }
 
-// CRUD: Envía una inserción persistente de una nueva cita
+// CRUD: Envía una inserción persistente de una nueva cita a la Base de Datos
 async function guardarNuevaCita() {
     const email = document.getElementById('email').value.trim();
     const nombre_cita = document.getElementById('nombre-cita').value.trim();
@@ -156,7 +156,7 @@ async function guardarNuevaCita() {
             alert(datos.message);
             document.getElementById('nombre-cita').value = "";
             document.getElementById('fecha-cita').value = "";
-            cargarCitas(email); // Actualización dinámica de la información en pantalla sin recargar
+            cargarCitas(email); // Actualización dinámica de la información en pantalla sin recargar la página entera
         } else {
             alert(datos.message);
         }
