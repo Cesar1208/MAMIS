@@ -1,13 +1,12 @@
 <?php
 // backend/config.php
 
-// Permitir el acceso explícito desde tu frontend en Render para eliminar el error amarillo de CORS
-header("Access-Control-Allow-Origin: https://mamis.onrender.com");
+// MODIFICACIÓN DE CORS: Permitir acceso general a todas las solicitudes externas para romper el bloqueo del navegador
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Access-Control-Allow-Credentials: true");
 
-// Responder de inmediato con un estado OK a las peticiones de pre-vuelo (OPTIONS) del navegador
+// Responder inmediatamente con estado exitoso a la petición OPTIONS de pre-vuelo
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit(0);
@@ -21,13 +20,13 @@ $user = 'uuj9b8v8wbw9b2v';
 $pass = 'XfF9N3pZ8vK7wQ2m'; 
 
 try {
-    // Establece la conexión formal utilizando PDO con codificación UTF-8 para evitar problemas de acentos
+    // Establece la conexión formal utilizando PDO con codificación UTF-8
     $pdo = new PDO("mysql:host=$host;dbname=$db;port=$port;charset=utf8mb4", $user, $pass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Reportar errores como excepciones legibles
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC // Retornar las consultas como arreglos asociativos
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 } catch (PDOException $e) {
-    // Si la base de datos falla, se corta el flujo y se le avisa al frontend en formato JSON
+    // Enviar error en JSON si falla la conexión a la base de datos
     header('Content-Type: application/json');
     echo json_encode(['status' => 'error', 'message' => 'Fallo crítico de conexión: ' . $e->getMessage()]);
     exit;
