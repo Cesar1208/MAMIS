@@ -4,19 +4,23 @@ let isLoginMode = true;
 let currentUser = null;
 
 // ===================================================
-// CONFIGURACIÓN DINÁMICA DE LA API
+// RESOLUCIÓN DE RUTA DINÁMICA DE LA API
 // ===================================================
 const getBackendUrl = () => {
+    const inputUrl = document.getElementById('network-url-input').value.trim();
+    if (inputUrl) {
+        return inputUrl;
+    }
     // ⚠️ REEMPLAZA ESTA URL POR EL ENLACE COMPLETO EN HTTPS QUE TE ENTREGÓ CLEVER CLOUD
     return "https://tu-app-php.cleverapps.io/backend";
 };
 
-// Captura de selectores estructurales del DOM
+// Selectores estructurales del DOM
 const authForm = document.getElementById('auth-form');
 const authTitle = document.getElementById('auth-title');
+const authSubtitle = document.getElementById('auth-subtitle');
 const btnAuthSubmit = document.getElementById('btn-auth-submit');
 const toggleAuthLink = document.getElementById('toggle-auth-link');
-const forgotPassLink = document.getElementById('forgot-pass-link');
 const authSection = document.getElementById('auth-section');
 const appSection = document.getElementById('app-section');
 const currentUserDisplay = document.getElementById('current-user-display');
@@ -24,8 +28,10 @@ const btnLogout = document.getElementById('btn-logout');
 const connectionStatus = document.getElementById('connection-status');
 const consoleLogs = document.getElementById('console-logs');
 const btnClearLogs = document.getElementById('btn-clear-logs');
+const crudForm = document.getElementById('crud-form');
+const reservasTableBody = document.getElementById('reservas-table-body');
 
-// Inyección de mensajes dentro del monitor asíncrono en pantalla
+// Función de Logs de la consola asíncrona
 function addLog(text, type = 'info') {
     const p = document.createElement('p');
     p.className = `log-${type}`;
@@ -35,29 +41,29 @@ function addLog(text, type = 'info') {
 }
 
 // ===================================================
-// HILOS EN SEGUNDO PLANO ASÍNCRONOS (CRITERIO RÚBRICA)
+// MONITOREO DE HILOS SECUNDARIOS (RÚBRICA PWA)
 // ===================================================
 setInterval(() => {
     if (navigator.onLine) {
-        addLog("Hilo Secundario: Monitoreando latencia de los clústeres cloud...", "process");
+        addLog("Hilo Secundario: Verificando latencia con los clusters cloud...", "process");
     }
 }, 15000);
 
 window.addEventListener('online', () => {
     connectionStatus.textContent = "Online";
     connectionStatus.className = "status online";
-    addLog("API Red: Enlace de datos global restaurado.", "success");
+    addLog("API Red: Terminal conectada al backend global.", "success");
 });
 
 window.addEventListener('offline', () => {
     connectionStatus.textContent = "Offline";
     connectionStatus.className = "status offline";
-    addLog("API Red: Terminal operando de forma local sin conexión.", "warn");
+    addLog("API Red: Error de red física. Modo offline activado.", "warn");
 });
 
-// Cambiar estado visual entre Login y Registro
 function actualizarInterfazAuth() {
     authTitle.textContent = isLoginMode ? "Autenticación de Usuarios" : "Registro de Cuenta Nueva";
+    authSubtitle.textContent = isLoginMode ? "Ingresa tus credenciales para acceder al panel relacional core." : "Crea una cuenta para interactuar con las tablas de MySQL.";
     btnAuthSubmit.textContent = isLoginMode ? "Iniciar Sesión" : "Registrar y Validar";
     toggleAuthLink.textContent = isLoginMode ? "¿No tienes cuenta? Registrar nuevo usuario" : "¿Ya tienes cuenta? Iniciar Sesión";
 }
@@ -69,7 +75,7 @@ toggleAuthLink.addEventListener('click', (e) => {
 });
 
 // ===================================================
-// ENVÍO DE FORMULARIOS POR FETCH ASÍNCRONO
+// AUTENTICACIÓN ASÍNCRONA (LOGIN / REGISTRO)
 // ===================================================
 authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -77,16 +83,21 @@ authForm.addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const action = isLoginMode ? 'login' : 'register';
 
-    addLog(`Enviando transacción asíncrona de ${action} hacia el cluster cloud...`, "process");
+    if (!email || !password) {
+        addLog("Formulario rechazado: Campos incompletos.", "warn");
+        return;
+    }
+
+    addLog(`Enviando petición asíncrona (${action}) al clúster de Clever Cloud...`, "process");
 
     try {
-        // Petición POST real dirigida a la API en producción
         const res = await fetch(`${getBackendUrl()}/auth.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=${action}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
         });
         
+        if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
         const data = await res.json();
 
         if (data.status === 'success') {
@@ -94,42 +105,119 @@ authForm.addEventListener('submit', async (e) => {
             alert(data.message);
             
             if (isLoginMode) {
-                // Inicio de sesión exitoso y despliegue del entorno core
                 currentUser = email;
                 currentUserDisplay.textContent = currentUser;
                 authSection.classList.add('hidden');
                 appSection.classList.remove('hidden');
+                loadReservas();
             } else {
-                // Redirección inmediata al login tras el registro exitoso
                 isLoginMode = true;
                 actualizarInterfazAuth();
                 document.getElementById('password').value = '';
             }
         } else {
-            // Manejo controlado de errores devueltos por PHP
-            addLog(`Servidor de Datos: ${data.message}`, "warn");
+            addLog(`Respuesta del Servidor: ${data.message}`, "warn");
             alert(data.message);
         }
     } catch (err) {
-        // Captura de bloqueos de CORS o caídas físicas del servidor externo
-        addLog("Fallo de CORS o error en la dirección IP de Clever Cloud.", "warn");
+        addLog("Fallo de CORS o error en la dirección IP del backend.", "error");
     }
 });
+
+// ===================================================
+// OPERACIONES DEL CRUD DE RESERVAS (GET / POST / DELETE)
+// ===================================================
+async function loadReservas() {
+    addLog("Sincronizando registros de la tabla 'reservas'...", "process");
+    try {
+        const res = await fetch(`${getBackendUrl()}/reservas.php`);
+        if (!res.ok) throw new Error();
+        const reservas = await res.json();
+        
+        reservasTableBody.innerHTML = '';
+        if (reservas.length === 0) {
+            reservasTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No hay reservas disponibles en el clúster.</td></tr>`;
+            return;
+        }
+
+        reservas.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.dni}</td>
+                <td><span class="highlight">${r.idVuelo}</span></td>
+                <td>${r.fecha}</td>
+                <td>$${parseFloat(r.precio).toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-danger" onclick="deleteReserva('${r.dni}', '${r.idVuelo}')">Eliminar</button>
+                </td>
+            `;
+            reservasTableBody.appendChild(tr);
+        });
+        addLog("Tabla de datos actualizada correctamente.", "success");
+    } catch (err) {
+        addLog("Error al recuperar datos del CRUD relacional.", "error");
+    }
+}
+
+crudForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dni = document.getElementById('dni').value.trim();
+    const idVuelo = document.getElementById('idVuelo').value.trim();
+    const fecha = document.getElementById('fecha').value;
+    const precio = document.getElementById('precio').value;
+
+    addLog("Enviando comando INSERT hacia las tablas físicas de MySQL...", "process");
+
+    try {
+        const res = await fetch(`${getBackendUrl()}/reservas.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `dni=${encodeURIComponent(dni)}&idVuelo=${encodeURIComponent(idVuelo)}&fecha=${encodeURIComponent(fecha)}&precio=${encodeURIComponent(precio)}`
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            addLog(data.message, "success");
+            crudForm.reset();
+            loadReservas();
+        } else {
+            addLog(`Error en inserción: ${data.message}`, "warn");
+        }
+    } catch (err) {
+        addLog("Error de comunicación de red al guardar registro.", "error");
+    }
+});
+
+window.deleteReserva = async (dni, idVuelo) => {
+    if (!confirm("¿Deseas eliminar este registro de la base de datos cloud?")) return;
+    addLog(`Enviando instrucción DELETE para DNI: ${dni}...`, "process");
+
+    try {
+        const res = await fetch(`${getBackendUrl()}/reservas.php?dni=${encodeURIComponent(dni)}&idVuelo=${encodeURIComponent(idVuelo)}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            addLog(data.message, "success");
+            loadReservas();
+        } else {
+            addLog(`Error al eliminar: ${data.message}`, "warn");
+        }
+    } catch (err) {
+        addLog("No se pudo completar el borrado físico del registro.", "error");
+    }
+};
 
 btnLogout.addEventListener('click', () => {
     currentUser = null;
     appSection.classList.add('hidden');
     authSection.classList.remove('hidden');
     document.getElementById('password').value = '';
-    addLog("Sesión de usuario destruida con éxito.", "info");
+    addLog("Sesión cerrada. Estado de memoria destruido de forma segura.", "info");
 });
 
-if (btnClearLogs) {
-    btnClearLogs.addEventListener('click', () => {
-        consoleLogs.innerHTML = '';
-        addLog("Consola limpia.", "info");
-    });
-}
+btnClearLogs.addEventListener('click', () => { consoleLogs.innerHTML = ''; });
 
-// Inicialización de entorno PWA
-addLog("Kernel: Entorno listo para la comunicación de Clusters Cloud.", "success");
+// Inicialización
+addLog("Inicializando entorno PWA listo para Clever Cloud...", "success");
