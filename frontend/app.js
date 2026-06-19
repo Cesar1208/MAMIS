@@ -2,8 +2,8 @@
 
 let modoActual = 'register'; 
 
-// URL CORREGIDA: Volvemos a incluir /backend porque tus archivos están estructurados en esa carpeta dentro del servidor
-const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
+// URL DEFINITIVA: Usando tu dominio limpio asociado y la subcarpeta /backend
+const API_BASE_URL = "https://mamis-cesar.cleverapps.io/backend";
 const AUTH_URL = `${API_BASE_URL}/auth.php`;
 const RESERVAS_URL = `${API_BASE_URL}/reservas.php`;
 
@@ -91,7 +91,7 @@ async function enviarDatosFormulario(e) {
             emiteLog(datos.message, "success");
             alert(datos.message);
 
-            // Muestra en la consola integrada el enlace de activación simulado
+            // Muestra en la consola integrada el enlace de activación simulado exigido en la rúbrica
             if ((modoActual === 'register' || modoActual === 'recover') && datos.link_simulado) {
                 emiteLog(`[Gmail Simulado] Enlace Recibido: ${datos.link_simulado}`, "success");
             } 
