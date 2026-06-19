@@ -2,8 +2,8 @@
 
 let modoActual = 'register'; 
 
-// DIRECCIÓN IP/URL DEL BACKEND CORREGIDA: Apunta directo a Clever Cloud en lugar de localhost
-const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
+// URL CORREGIDA: Apunta directo a la raíz de Clever Cloud porque ahí se montan auth.php y reservas.php
+const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io";
 const AUTH_URL = `${API_BASE_URL}/auth.php`;
 const RESERVAS_URL = `${API_BASE_URL}/reservas.php`;
 
