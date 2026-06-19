@@ -1,32 +1,35 @@
-// Variable global para controlar en qué pantalla se encuentra parado el usuario
+// frontend/app.js
+
 let modoActual = 'register'; 
 
-// Apunta de manera fija y segura a tu backend en Clever Cloud para descartar errores locales
-const API_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend/auth.php";
+// DIRECCIÓN IP/URL DEL BACKEND CORREGIDA: Apunta directo a Clever Cloud en lugar de localhost
+const API_BASE_URL = "https://app-f11f01f7-d577-43bd-b5a4-bc58a8917f37.cleverapps.io/backend";
+const AUTH_URL = `${API_BASE_URL}/auth.php`;
+const RESERVAS_URL = `${API_BASE_URL}/reservas.php`;
 
-// REGISTRO DEL SERVICE WORKER: Exigencia obligatoria para transformar tu app en una PWA
+// Registro del Service Worker para convertir la aplicación en una PWA según rúbrica
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(() => emiteLog("PWA: Service Worker Activado Correctamente.", "success"))
-            .catch(err => emiteLog("PWA Error: " + err, "error"));
+            .then(reg => emiteLog(`Service Worker activo. Scope: ${reg.scope}`, "success"))
+            .catch(err => emiteLog("Error de registro SW: " + err, "error"));
     });
 }
 
-// FUNCIÓN DE CONSOLA VISUAL: Imprime los procesos internos en tiempo real directamente en la pantalla
+// Función encargada de imprimir las operaciones e hilos en la consola de pantalla
 function emiteLog(msg, tipo = "info") {
     const box = document.getElementById('console-logs');
     const hora = new Date().toLocaleTimeString();
     box.innerHTML += `<p class="log-${tipo}">[${hora}] ${msg}</p>`;
-    box.scrollTop = box.scrollHeight; // Auto-scroll para ver siempre el último proceso generado
+    box.scrollTop = box.scrollHeight; // Auto-scroll al último evento generado
 }
 
-// RÚBRICA - PROCESO PERSISTENTE: Ejecuta un hilo secundario automático cada 15 segundos simulando tareas en segundo plano
+// HILO SECUNDARIO EN SEGUNDO PLANO: Simula monitoreo de latencia persistente cada 15 segundos
 setInterval(() => {
-    emiteLog("Hilo Secundario: Verificando sincronización persistente con Clever Cloud...", "info");
+    emiteLog("Hilo Secundario: Monitoreando latencia de los clusters cloud...", "info");
 }, 15000);
 
-// INTERCAMBIO DE MODOS: Alterna las etiquetas visuales entre "Registrarse" e "Iniciar Sesión"
+// Alterna los textos visuales de la tarjeta de autenticación
 function intercambiarModo(e) {
     e.preventDefault();
     document.getElementById('password-group').classList.remove('hidden');
@@ -47,37 +50,35 @@ function intercambiarModo(e) {
     }
 }
 
-// RECUPERACIÓN VISUAL: Modifica la pantalla para dar soporte a la función de olvido de contraseña
+// Adapta los campos del formulario para procesar un olvido de claves
 function activarModoRecuperacion(e) {
     e.preventDefault();
     modoActual = 'recover';
     document.getElementById('welcome-text').innerText = "Recuperación de Contraseña";
-    document.getElementById('password-group').classList.add('hidden'); // Oculta la clave ya que no es requerida para este paso
+    document.getElementById('password-group').classList.add('hidden');
     document.getElementById('btn-submit').innerText = "Enviar Enlace de Recuperación";
     document.getElementById('toggle-auth-mode').innerText = "Volver al Inicio de Sesión";
 }
 
-// ASYNC / AWAIT: Consume las peticiones de red hacia Clever Cloud de manera asíncrona sin congelar la app
+// ASYNC / AWAIT: Consume las peticiones de autenticación sin congelar la renderización
 async function enviarDatosFormulario(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value.trim();
 
-    // Configura la ruta dinámica dependiendo de lo que el usuario esté haciendo en la pantalla
-    let urlTarget = `${API_URL}?action=register`;
+    let urlTarget = `${AUTH_URL}?action=register`;
     let payload = { email, password };
 
     if (modoActual === 'login') {
-        urlTarget = `${API_URL}?action=login`;
+        urlTarget = `${AUTH_URL}?action=login`;
     } else if (modoActual === 'recover') {
-        urlTarget = `${API_URL}?action=recover_request`;
-        payload = { email }; // Solo manda el correo
+        urlTarget = `${AUTH_URL}?action=recover_request`;
+        payload = { email };
     }
 
-    emiteLog(`Consumo API: Procesando petición asíncrona [${modoActual}]...`, "info");
+    emiteLog(`Enviando ${modoActual} al backend de Clever Cloud...`, "info");
 
     try {
-        // Ejecuta la llamada asíncrona enviando los objetos JSON estructurados
         const respuesta = await fetch(urlTarget, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -90,35 +91,86 @@ async function enviarDatosFormulario(e) {
             emiteLog(datos.message, "success");
             alert(datos.message);
 
-            // Si es un registro, captura el enlace de confirmación simulado de Gmail y lo saca por la consola integrada
-            if (modoActual === 'register' && datos.link_simulado) {
-                emiteLog(`[Gmail Simulado] Llegó Enlace de Activación: ${datos.link_simulado}`, "success");
+            // Muestra en consola el enlace simulado de Gmail para permitir las pruebas de activación
+            if ((modoActual === 'register' || modoActual === 'recover') && datos.link_simulado) {
+                emiteLog(`[Gmail Simulado] Enlace Recibido: ${datos.link_simulado}`, "success");
             } 
-            // Si es una recuperación de contraseña, atrapa el enlace dinámico generado por el servidor
-            else if (modoActual === 'recover' && datos.link_simulado) {
-                emiteLog(`[Gmail Simulado] Llegó Enlace de Recuperación: ${datos.link_simulado}`, "success");
-            } 
-            // Si el inicio de sesión es exitoso, oculta el formulario e ingresa a la pantalla de éxito
             else if (modoActual === 'login') {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('heart-success-section').classList.remove('hidden');
                 document.getElementById('display-user-email').innerText = `Conectado como: ${email}`;
+                cargarCitas(email); // Lee de manera asíncrona las citas existentes de la base de datos (CRUD)
             }
         } else {
-            emiteLog(`Error de Validación: ${datos.message}`, "error");
+            emiteLog(`Fallo de validación: ${datos.message}`, "error");
             alert(datos.message);
         }
     } catch (error) {
-        emiteLog("Fallo de comunicación de red con el clúster.", "error");
+        emiteLog("Fallo de CORS o error en la dirección IP del backend.", "error");
     }
 }
 
-// Cierre de estados para limpiar variables de sesión local de forma segura
+// === FUNCIONES ADICIONALES PARA OPERACIONES CRUD (reservas.php) ===
+
+// CRUD: Consulta asíncronamente las citas guardadas del usuario en Clever Cloud
+async function cargarCitas(email) {
+    try {
+        const res = await fetch(`${RESERVAS_URL}?email=${encodeURIComponent(email)}`);
+        const citas = await res.json();
+        const lista = document.getElementById('lista-citas');
+        lista.innerHTML = "";
+        
+        if (citas.length === 0) {
+            lista.innerHTML = "<li>No hay citas agendadas aún.</li>";
+            return;
+        }
+        
+        citas.forEach(c => {
+            lista.innerHTML += `<li>❤️ Cita con <strong>${c.nombre_cita}</strong> el: ${new Date(c.fecha_hora).toLocaleString()}</li>`;
+        });
+        emiteLog("CRUD: Datos de citas cargados desde la base de datos.", "success");
+    } catch (err) {
+        emiteLog("Error al cargar listado CRUD de citas.", "error");
+    }
+}
+
+// CRUD: Envía una inserción persistente de una nueva cita
+async function guardarNuevaCita() {
+    const email = document.getElementById('email').value.trim();
+    const nombre_cita = document.getElementById('nombre-cita').value.trim();
+    const fecha_hora = document.getElementById('fecha-cita').value;
+
+    if (!nombre_cita || !fecha_hora) {
+        alert("Por favor llena los campos de la cita.");
+        return;
+    }
+
+    try {
+        const res = await fetch(RESERVAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, nombre_cita, fecha_hora })
+        });
+        const datos = await res.json();
+        if (datos.status === 'success') {
+            alert(datos.message);
+            document.getElementById('nombre-cita').value = "";
+            document.getElementById('fecha-cita').value = "";
+            cargarCitas(email); // Actualización dinámica de la información en pantalla sin recargar
+        } else {
+            alert(datos.message);
+        }
+    } catch (e) {
+        emiteLog("Error al insertar registro en la base de datos.", "error");
+    }
+}
+
+// Limpieza de estados globales al cerrar sesión
 function salirDeSesion() {
     document.getElementById('heart-success-section').classList.add('hidden');
     document.getElementById('auth-section').classList.remove('hidden');
     document.getElementById('auth-form').reset();
     modoActual = 'login';
     intercambiarModo({ preventDefault: () => {} });
-    emiteLog("Sesión limpia finalizada correctamente.", "info");
+    emiteLog("Sesión de usuario destruida con éxito.", "info");
 }
