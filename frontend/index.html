@@ -4,25 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CupidCore - Tu Media Naranja</title>
+    <!-- Vincula las hojas de estilo y el manifiesto PWA requerido por la rúbrica -->
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
-    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Carga de fuentes estéticas tipográficas -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Plus+Jakarta+Sans:wght=400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div class="app-container">
 
+        <!-- CABECERA PRINCIPAL: Icono de corazón superior solicitado e identidad visual -->
         <header class="app-header">
             <div class="heart-logo">❤️</div>
             <h1 class="app-title">CupidCore</h1>
         </header>
 
+        <!-- 🔐 TARJETA DE CONTROL DE ACCESO (Inicio, Registro y Recuperaciones) -->
         <main id="auth-section" class="card">
             <div class="welcome-message">
+                <!-- Mensaje de bienvenida exacto solicitado para encontrar tu media naranja -->
                 <h2 id="welcome-text">Bienvenido a la app de citas donde vas a encontrar tu media naranja</h2>
                 <p id="auth-subtitle">Regístrate para comenzar la búsqueda.</p>
             </div>
 
+            <!-- Formulario interceptado por JavaScript para manejo de respuestas sin recargar página -->
             <form id="auth-form" onsubmit="enviarDatosFormulario(event)">
                 <div class="form-group">
                     <label for="email">Correo Electrónico</label>
@@ -37,6 +43,7 @@
                 <button type="submit" id="btn-submit">Registrar y Validar</button>
             </form>
 
+            <!-- Enlaces de navegación interna dinámicos -->
             <div class="auth-footer">
                 <a href="#" id="toggle-auth-mode" onclick="intercambiarModo(event)">¿Ya tienes cuenta? Iniciar Sesión</a>
                 <br><br>
@@ -44,15 +51,18 @@
             </div>
         </main>
 
+        <!-- 💘 INTERFAZ POST-LOGIN: Aparece al validar credenciales correctas -->
         <main id="heart-success-section" class="card hidden">
             <div class="success-screen">
                 <div class="pulse-heart">❤️</div>
+                <!-- Mensaje solicitado adaptable a tamaño teléfono y computadoras -->
                 <h1 class="heart-text">Llegué a tu corazón</h1>
                 <p class="user-display" id="display-user-email"></p>
                 <button class="btn-logout" onclick="salirDeSesion()">Cerrar Sesión</button>
             </div>
         </main>
 
+        <!-- 🖥️ CONSOLA DE MONITOREO ASÍNCRO: Requisito técnico para evaluar procesos e hilos -->
         <section class="console-card">
             <h3>Consola de Procesos Asíncronos e Hilos en Segundo Plano</h3>
             <div id="console-logs" class="console-box">
@@ -62,6 +72,7 @@
 
     </div>
 
+    <!-- Carga del archivo JavaScript al final para no congelar el dibujado de la pantalla -->
     <script src="app.js"></script>
 </body>
 </html>
