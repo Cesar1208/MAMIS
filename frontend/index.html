@@ -4,31 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CupidCore - Tu Media Naranja</title>
-    <!-- Vincula las hojas de estilo y el manifiesto PWA requerido por la rúbrica -->
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
-    <!-- Carga de fuentes estéticas tipográficas -->
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Plus+Jakarta+Sans:wght=400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div class="app-container">
 
-        <!-- CABECERA PRINCIPAL: Icono de corazón superior solicitado e identidad visual -->
         <header class="app-header">
             <div class="heart-logo">❤️</div>
             <h1 class="app-title">CupidCore</h1>
         </header>
 
-        <!-- 🔐 TARJETA DE CONTROL DE ACCESO (Inicio, Registro y Recuperaciones) -->
         <main id="auth-section" class="card">
             <div class="welcome-message">
-                <!-- Mensaje de bienvenida exacto solicitado para encontrar tu media naranja -->
                 <h2 id="welcome-text">Bienvenido a la app de citas donde vas a encontrar tu media naranja</h2>
-                <p id="auth-subtitle">Regístrate para comenzar la búsqueda.</p>
+                <p id="auth-subtitle">Regístrate para comenzar la búsqueda de tu pareja ideal.</p>
             </div>
 
-            <!-- Formulario interceptado por JavaScript para manejo de respuestas sin recargar página -->
             <form id="auth-form" onsubmit="enviarDatosFormulario(event)">
                 <div class="form-group">
                     <label for="email">Correo Electrónico</label>
@@ -43,7 +37,6 @@
                 <button type="submit" id="btn-submit">Registrar y Validar</button>
             </form>
 
-            <!-- Enlaces de navegación interna dinámicos -->
             <div class="auth-footer">
                 <a href="#" id="toggle-auth-mode" onclick="intercambiarModo(event)">¿Ya tienes cuenta? Iniciar Sesión</a>
                 <br><br>
@@ -51,28 +44,41 @@
             </div>
         </main>
 
-        <!-- 💘 INTERFAZ POST-LOGIN: Aparece al validar credenciales correctas -->
         <main id="heart-success-section" class="card hidden">
             <div class="success-screen">
                 <div class="pulse-heart">❤️</div>
-                <!-- Mensaje solicitado adaptable a tamaño teléfono y computadoras -->
                 <h1 class="heart-text">Llegué a tu corazón</h1>
-                <p class="user-display" id="display-user-email"></p>
-                <button class="btn-logout" onclick="salirDeSesion()">Cerrar Sesión</button>
+                <p class="user-display" id="display-user-email" style="font-weight: bold; margin-bottom: 15px; color: var(--text-muted);"></p>
+                
+                <div class="crud-section" style="margin-top: 20px; border-top: 1px solid #4c1d24; padding-top: 20px; text-align: left;">
+                    <h3 style="font-size: 1rem; color: var(--text-muted); margin-bottom: 12px;">📅 Agenda una Cita de Práctica (CRUD)</h3>
+                    
+                    <div class="form-group">
+                        <input type="text" id="nombre-cita" placeholder="¿Con quién es tu cita?">
+                    </div>
+                    <div class="form-group">
+                        <input type="datetime-local" id="fecha-cita">
+                    </div>
+                    <button onclick="guardarNuevaCita()" style="padding: 10px; font-size: 0.9rem; margin-bottom: 15px; background-color: #2a141a; border: 1px solid var(--red-primary);">Guardar Cita Persistentemente</button>
+
+                    <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase;">Tus Citas Guardadas:</h4>
+                    <ul id="lista-citas" style="font-size: 0.9rem; padding-left: 20px; color: #fff; line-height: 1.6;"></ul>
+                </div>
+
+                <br>
+                <button class="btn-logout" onclick="salirDeSesion()" style="margin-top: 15px;">Cerrar Sesión</button>
             </div>
         </main>
 
-        <!-- 🖥️ CONSOLA DE MONITOREO ASÍNCRO: Requisito técnico para evaluar procesos e hilos -->
         <section class="console-card">
             <h3>Consola de Procesos Asíncronos e Hilos en Segundo Plano</h3>
             <div id="console-logs" class="console-box">
-                <p class="log-info">[Sistema] Inicializando Service Worker e Hilos...</p>
+                <p class="log-info">[Kernel] Inicializando entorno PWA listo para Clever Cloud...</p>
             </div>
         </section>
 
     </div>
 
-    <!-- Carga del archivo JavaScript al final para no congelar el dibujado de la pantalla -->
     <script src="app.js"></script>
 </body>
 </html>
